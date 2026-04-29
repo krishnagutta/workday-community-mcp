@@ -3,6 +3,11 @@
 MCP server that exposes Workday Community / Resource Center documentation to Claude through
 Workday's Coveo-backed search index.
 
+> **Disclaimer**: Unofficial — not affiliated with, endorsed by, or supported by Workday, Inc.
+> This MCP uses each user's own authenticated browser session and only accesses content the
+> user's Workday Community account is already authorized to read. Use at your own risk; respect
+> Workday's terms of service.
+
 ## How it works
 
 Workday Community runs on AEM behind Workday CIAM (Okta), but search and content delivery are
@@ -12,10 +17,27 @@ no AEM scraping, no SAML dance.
 
 Trade-off: tokens expire ~2 hours after capture. v2 will add Playwright auto-refresh.
 
-## Quickstart (let Claude Code do the setup)
+## Quickstart — one-line install
+
+For users who just want it working:
 
 ```bash
-git clone git@github.com:krishnagutta/workday-community-mcp.git
+curl -fsSL https://raw.githubusercontent.com/krishnagutta/workday-community-mcp/main/bin/quickstart.sh | bash
+```
+
+This clones the repo into `~/community-mcp`, installs deps, optionally sets up Playwright
+auto-refresh, captures your Workday Community auth token, and registers the MCP with Claude
+Code. Total time: 2-3 minutes including login.
+
+After install, **start a new Claude Code session** — the MCP tools (`mcp__community__*`)
+are registered at user scope and available globally.
+
+## Quickstart — let Claude Code drive the setup
+
+If you prefer Claude Code to walk you through it:
+
+```bash
+git clone https://github.com/krishnagutta/workday-community-mcp.git
 cd workday-community-mcp
 claude
 ```
@@ -101,7 +123,7 @@ Add to `~/.claude/settings.json` (or a project `.mcp.json`):
       "args": [
         "run",
         "--directory",
-        "/Users/krishnagutta/Documents/community-mcp",
+        "<absolute-path-to-this-repo>",
         "python",
         "-m",
         "community_mcp.server"
@@ -110,6 +132,9 @@ Add to `~/.claude/settings.json` (or a project `.mcp.json`):
   }
 }
 ```
+
+(`bin/install.sh` and the quickstart installer do this automatically using
+`claude mcp add` — you only need to edit the JSON manually if you're not using Claude Code.)
 
 ## Tools
 
