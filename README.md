@@ -12,17 +12,40 @@ no AEM scraping, no SAML dance.
 
 Trade-off: tokens expire ~2 hours after capture. v2 will add Playwright auto-refresh.
 
-## Setup
+## Quickstart (let Claude Code do the setup)
 
 ```bash
 git clone git@github.com:krishnagutta/workday-community-mcp.git
 cd workday-community-mcp
-bash bin/install.sh
+claude
 ```
 
-`install.sh` creates the venv, installs deps, and registers the MCP server with Claude Code at user scope.
-Each teammate captures their own Coveo token (see below) — tokens are per-user and carry your individual
-Workday Community access scope. **Do not share tokens.**
+Then in Claude Code, just say:
+
+> Read CLAUDE.md and set this up for me.
+
+Claude reads `CLAUDE.md`, runs the install, asks if you want Playwright auto-refresh,
+captures your Workday Community auth token (a real browser window opens; you log in
+normally), and verifies the MCP works. Total time: 2-3 minutes including login.
+
+**After setup, start a new Claude Code session** — the MCP tools (`mcp__community__*`) are
+registered at user scope and available globally.
+
+### Manual setup (if you don't want to use Claude Code)
+
+```bash
+bash bin/install.sh
+
+# Optional: enable Playwright auto-refresh (recommended)
+uv pip install -e '.[auto-refresh]'
+./.venv/bin/playwright install chromium
+
+# Capture your Coveo token (opens a browser for login)
+bash bin/refresh-token.sh --auto
+```
+
+Each teammate captures their own Coveo token — tokens are per-user and carry your individual
+Workday Community access scope. **Do not share tokens, `.env`, or `.playwright-state.json`.**
 
 ## Refreshing the token
 

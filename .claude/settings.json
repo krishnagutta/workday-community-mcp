@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Bash(bash bin/install.sh)",
+      "Bash(bash bin/refresh-token.sh*)",
+      "Bash(./bin/install.sh)",
+      "Bash(./bin/refresh-token.sh*)",
+      "Bash(uv venv*)",
+      "Bash(uv pip install*)",
+      "Bash(./.venv/bin/playwright install*)",
+      "Bash(.venv/bin/playwright install*)",
+      "Bash(./.venv/bin/python*)",
+      "Bash(.venv/bin/python*)",
+      "Bash(claude mcp list)",
+      "Bash(claude mcp get*)"
+    ]
+  }
+}
