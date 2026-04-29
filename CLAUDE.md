@@ -6,67 +6,56 @@ flow below.
 
 ## First-time setup
 
-Run these in order. Stop and ask the user before any step that requires their input or a
-multi-minute download.
+Default flow includes Playwright + auto-refresh — only mention `--no-playwright` if the
+user has an explicit org-policy concern. Run these in order:
 
-1. **Install the MCP itself** (always required):
+1. **Install** (creates venv, installs deps + Playwright + Chromium, registers MCP):
    ```bash
    bash bin/install.sh
    ```
-   This creates `.venv`, installs the package, and registers the `community` MCP with
-   Claude Code at user scope. It does NOT capture an auth token.
-
-2. **Ask the user**: do they want auto-refresh (Playwright)?
-   - **Yes** (recommended): adds Playwright + downloads ~250MB of Chromium. Tokens then
-     refresh automatically with no manual cookie capture.
-   - **No**: stick with the manual `bin/refresh-token.sh` flow (Copy-as-cURL from DevTools).
-   - **Lyft users**: warn them that Playwright may need security review at their org. Both
-     paths are supported; the user can decide.
-
-   If yes, run:
+   If the user explicitly says they can't have Playwright on their machine:
    ```bash
-   uv pip install -e '.[auto-refresh]' --project "$(pwd)"
-   ./.venv/bin/playwright install chromium
+   bash bin/install.sh --no-playwright
    ```
 
-3. **Capture the user's auth token** (always required):
-   - With auto-refresh installed:
-     ```bash
-     bash bin/refresh-token.sh --auto
-     ```
-     A real Chromium window opens. Tell the user: "Log in to Workday Community in the
-     browser window that opened — it will close automatically when login completes." MFA
-     is handled naturally because the user drives a real browser.
-   - Without auto-refresh: walk them through `pbpaste > .captured-curl.sh` then
-     `bash bin/refresh-token.sh`. The README has the manual steps in detail.
-
-4. **Confirm it works**: run a smoke search to prove the auth token is valid:
+2. **Capture the user's auth token**:
    ```bash
-   .venv/bin/python -c "import os; from dotenv import load_dotenv; load_dotenv('.env'); from community_mcp.coveo_client import CoveoClient; c = CoveoClient(token=os.environ['COVEO_SEARCH_TOKEN'], org_id=os.environ['COVEO_ORG_ID']); [print(h.title) for h in c.search('release notes', count=3)]"
+   bash bin/refresh-token.sh
+   ```
+   A real Chromium window opens. Tell the user: "Log in to Workday Community in the
+   browser window — it closes automatically once login completes." MFA is handled
+   naturally because the user drives a real browser.
+
+   For `--no-playwright` users only: walk them through `pbpaste > .captured-curl.sh`
+   then `bash bin/refresh-token.sh --manual`. The README has the manual steps.
+
+3. **Confirm it works** — quick smoke search:
+   ```bash
+   .venv/bin/python -c "import os; from dotenv import load_dotenv; load_dotenv('.env'); from community_mcp.coveo_client import CoveoClient; c = CoveoClient(token=os.environ['COVEO_SEARCH_TOKEN'], org_id=os.environ['COVEO_ORG_ID']); [print(h.title) for h in c.search('release notes', count=3).hits]"
    ```
 
-5. **Tell the user to start a NEW Claude Code session.** The MCP is registered at user scope
-   but the current session won't pick it up — only fresh sessions will see the
+4. **Tell the user to start a NEW Claude Code session.** The MCP is registered at user
+   scope but the current session won't pick it up — only fresh sessions will see the
    `mcp__community__*` tools.
 
 ## Refreshing the token
 
-The MCP **auto-refreshes** the token transparently when it hits a 401, as long as the user
-has Playwright installed and their saved storage state is < ~12h old. So normally you don't
-need to do anything — just retry the failed tool call once if you want to be explicit.
+The MCP **auto-refreshes** the token transparently when it hits a 401, as long as the user's
+saved storage state is < ~12h old. Normally you don't need to do anything — just retry the
+failed tool call once.
 
-**You only need to run a manual refresh** if the auto-refresh fails (storage state expired
-beyond 12h, or Playwright not installed):
+**You only need to run a manual refresh** if auto-refresh fails (storage state expired
+beyond 12h):
 
 ```bash
-bash bin/refresh-token.sh --auto
+bash bin/refresh-token.sh
 ```
 
 - Within ~12h of the last login: silent, ~1 second, no UI.
 - After ~12h: a Chromium window opens; user logs in again.
 
-Do NOT ask the user to manually copy cookies from DevTools unless they explicitly opted out
-of Playwright.
+Do NOT ask the user to manually copy cookies from DevTools unless they're on the
+`--no-playwright` install path (`bash bin/refresh-token.sh --manual`).
 
 ## Tool selection guide
 

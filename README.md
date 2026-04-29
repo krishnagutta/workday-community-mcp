@@ -15,22 +15,28 @@ powered by **Coveo**. Logging into the browser sets a `coveo-info` cookie contai
 JWT (`searchToken`) authorized for the Coveo Search REST API. This MCP wraps that API directly —
 no AEM scraping, no SAML dance.
 
-Trade-off: tokens expire ~2 hours after capture. v2 will add Playwright auto-refresh.
+Tokens last ~2 hours, but Playwright handles refresh automatically. After your first
+login, subsequent refreshes are silent and headless (~1 second). When your saved session
+ages out (~12h), the browser opens once for re-login.
 
 ## Quickstart — one-line install
-
-For users who just want it working:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/krishnagutta/workday-community-mcp/main/bin/quickstart.sh | bash
 ```
 
-This clones the repo into `~/community-mcp`, installs deps, optionally sets up Playwright
-auto-refresh, captures your Workday Community auth token, and registers the MCP with Claude
-Code. Total time: 2-3 minutes including login.
+This clones the repo into `~/community-mcp`, installs everything (including Playwright
++ Chromium for auto-refresh), captures your Workday Community auth token by opening a
+browser for login, and registers the MCP with Claude Code. Total time: 2-3 minutes.
 
 After install, **start a new Claude Code session** — the MCP tools (`mcp__community__*`)
 are registered at user scope and available globally.
+
+If your org doesn't allow Playwright, pass `--no-playwright`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/krishnagutta/workday-community-mcp/main/bin/quickstart.sh | bash -s -- --no-playwright
+```
 
 ## Quickstart — let Claude Code drive the setup
 
@@ -42,58 +48,38 @@ cd workday-community-mcp
 claude
 ```
 
-Then in Claude Code, just say:
+Then in Claude Code, say:
 
 > Read CLAUDE.md and set this up for me.
 
-Claude reads `CLAUDE.md`, runs the install, asks if you want Playwright auto-refresh,
-captures your Workday Community auth token (a real browser window opens; you log in
-normally), and verifies the MCP works. Total time: 2-3 minutes including login.
+Claude reads `CLAUDE.md`, runs the install, captures your Workday Community auth token
+(a real browser window opens; you log in normally), and verifies the MCP works.
 
-**After setup, start a new Claude Code session** — the MCP tools (`mcp__community__*`) are
-registered at user scope and available globally.
-
-### Manual setup (if you don't want to use Claude Code)
+## Manual setup (no installer scripts)
 
 ```bash
-bash bin/install.sh
-
-# Optional: enable Playwright auto-refresh (recommended)
-uv pip install -e '.[auto-refresh]'
-./.venv/bin/playwright install chromium
-
-# Capture your Coveo token (opens a browser for login)
-bash bin/refresh-token.sh --auto
+bash bin/install.sh           # venv, deps, Playwright + Chromium, MCP registration
+bash bin/refresh-token.sh     # opens a browser for first-time login
 ```
 
-Each teammate captures their own Coveo token — tokens are per-user and carry your individual
+Each user captures their own Coveo token — tokens are per-user and carry your individual
 Workday Community access scope. **Do not share tokens, `.env`, or `.playwright-state.json`.**
 
 ## Refreshing the token
 
-Tokens last ~2 hours. Two ways to refresh — pick one.
-
-### Option A — Auto (recommended): Playwright browser drive
-
-Opt-in once:
+Tokens auto-refresh in the background — you almost never need to think about this. The MCP
+catches `401` errors and silently runs a headless Playwright refresh in ~1 second. You'll
+only see `AUTH ERROR` if your saved session has aged out beyond ~12h, in which case:
 
 ```bash
-uv pip install -e '.[auto-refresh]'
-playwright install chromium
+bash bin/refresh-token.sh
 ```
 
-Then:
+A browser window opens, you log in once, you're good for another ~12 hours.
 
-```bash
-./bin/refresh-token.sh --auto
-```
+### Manual fallback (no Playwright)
 
-- **First run** (or after ~12h): a real Chromium window opens; complete login + MFA normally; window closes.
-- **Subsequent runs** (within ~12h): headless, silent, ~1 second.
-
-Storage state is persisted to `.playwright-state.json` (gitignored). When it ages out, the next run automatically falls back to headed login.
-
-### Option B — Manual: copy-as-cURL
+If you installed with `--no-playwright`:
 
 1. Open Chrome **incognito** at <https://community.workday.com> and log in.
 2. DevTools → Network → reload `resourcecenter.workday.com/en-us/wrc/home.html`.
@@ -102,7 +88,7 @@ Storage state is persisted to `.playwright-state.json` (gitignored). When it age
 
    ```bash
    pbpaste > .captured-curl.sh
-   ./bin/refresh-token.sh
+   bash bin/refresh-token.sh --manual
    ```
 
 ## Run
@@ -149,7 +135,7 @@ Add to `~/.claude/settings.json` (or a project `.mcp.json`):
 Each result includes content type, product line, source bucket, and date.
 
 The MCP **auto-refreshes its auth token on 401** — you'll only see auth errors if your
-Playwright storage state has aged out (≥12h). At that point run `bash bin/refresh-token.sh --auto`.
+Playwright storage state has aged out (≥12h). At that point run `bash bin/refresh-token.sh`.
 
 ## Files
 

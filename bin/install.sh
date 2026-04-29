@@ -3,21 +3,24 @@
 #
 # What it does:
 #   1. Creates a Python 3.11 venv in .venv (via uv)
-#   2. Installs the package and dependencies
-#   3. Registers the MCP server with Claude Code (`claude mcp add community ...` at user scope)
+#   2. Installs the package and dependencies (Playwright included by default)
+#   3. Downloads Chromium for Playwright auto-refresh (~170MB) — pass --no-playwright to skip
+#   4. Registers the MCP server with Claude Code (`claude mcp add community ...` at user scope)
 #
 # What it does NOT do:
-#   - Capture the Coveo auth token. You'll do that the first time you use the tool:
-#       1. Open https://community.workday.com in incognito Chrome and log in.
-#       2. DevTools -> Network -> reload home -> right-click home.html -> Copy as cURL (bash).
-#       3. From this directory:  pbpaste > .captured-curl.sh && bash bin/refresh-token.sh
-#
-# Tokens last ~2 hours. Re-run step 3 above when you see "AUTH ERROR: Coveo returned 401".
+#   - Capture the Coveo auth token. Run `bash bin/refresh-token.sh` after install.
 
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
+
+WITH_PLAYWRIGHT=true
+for arg in "$@"; do
+    case "$arg" in
+        --no-playwright) WITH_PLAYWRIGHT=false ;;
+    esac
+done
 
 if ! command -v uv >/dev/null 2>&1; then
     echo "ERROR: uv is required. Install it from https://docs.astral.sh/uv/getting-started/installation/" >&2
@@ -33,8 +36,16 @@ fi
 echo "==> Creating Python 3.11 virtualenv at .venv"
 uv venv --python 3.11 .venv
 
-echo "==> Installing package"
+echo "==> Installing package + dependencies"
 VIRTUAL_ENV="$ROOT_DIR/.venv" uv pip install --project "$ROOT_DIR" -e "$ROOT_DIR" >/dev/null
+
+if [[ "$WITH_PLAYWRIGHT" == "true" ]]; then
+    echo "==> Downloading Chromium for Playwright (~170MB)"
+    "$ROOT_DIR/.venv/bin/playwright" install chromium
+else
+    echo "==> Skipping Chromium download (--no-playwright). Auto-refresh disabled."
+    echo "    You'll need to capture tokens manually via 'bash bin/refresh-token.sh --manual'."
+fi
 
 echo "==> Registering MCP server with Claude Code (user scope)"
 if claude mcp list 2>&1 | grep -q "^community:"; then
@@ -47,16 +58,15 @@ cat <<EOF
 
 ✅ Installed.
 
-Next step — capture your Coveo auth token (each user does this with their own Workday Community login):
+Next step — capture your Coveo auth token:
 
-  1. Open https://community.workday.com in incognito Chrome and log in.
-  2. DevTools → Network tab → reload the home page.
-  3. Right-click the 'home.html' request → Copy → Copy as cURL (bash).
-  4. From this directory:
-       pbpaste > .captured-curl.sh
-       bash bin/refresh-token.sh
+  bash bin/refresh-token.sh
+
+A real Chromium window will open. Log in to Workday Community
+(handle MFA normally). The window closes automatically once login completes.
+
+Subsequent refreshes are silent (headless, ~1 second) — until your saved
+session ages out (~12h), at which point the browser opens again for re-login.
 
 Then start a new Claude Code session and ask it to search Workday Community.
-
-Token expiry: ~2 hours. When you see 'AUTH ERROR: Coveo returned 401', repeat step 4.
 EOF
