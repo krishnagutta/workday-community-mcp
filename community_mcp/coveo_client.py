@@ -13,6 +13,7 @@ SEARCH_PATH = "/rest/search/v2"
 HTML_PATH = "/rest/search/v2/html"
 
 MAX_RESULTS = 50
+DEFAULT_EXCERPT_LENGTH = 400
 
 # Coveo `source` field buckets — useful for filtering noise (forum) from official docs.
 SOURCE_OFFICIAL_DOCS = "iLX-AEM-Admin-Guide"
@@ -48,6 +49,18 @@ class SearchHit:
     date_ms: int | None = None
 
 
+@dataclass(frozen=True)
+class SearchResult:
+    hits: list[SearchHit]
+    total_count: int
+    offset: int
+
+    @property
+    def next_offset(self) -> int | None:
+        end = self.offset + len(self.hits)
+        return end if end < self.total_count else None
+
+
 class CoveoClient:
     def __init__(
         self,
@@ -68,14 +81,18 @@ class CoveoClient:
         self,
         query: str,
         count: int = 10,
+        offset: int = 0,
         *,
         sources: list[str] | None = None,
         content_types: list[str] | None = None,
         product_lines: list[str] | None = None,
-    ) -> list[SearchHit]:
+        excerpt_length: int = DEFAULT_EXCERPT_LENGTH,
+    ) -> SearchResult:
         payload: dict[str, Any] = {
             "q": query,
             "numberOfResults": max(1, min(count, MAX_RESULTS)),
+            "firstResult": max(0, offset),
+            "excerptLength": excerpt_length,
             "searchHub": self._search_hub,
             "fieldsToInclude": FIELDS_TO_INCLUDE,
         }
@@ -83,7 +100,11 @@ class CoveoClient:
         if aq:
             payload["aq"] = aq
         response = self._post_json(SEARCH_PATH, payload)
-        return [_to_hit(result) for result in response.get("results", [])]
+        return SearchResult(
+            hits=[_to_hit(result) for result in response.get("results", [])],
+            total_count=int(response.get("totalCount", 0)),
+            offset=offset,
+        )
 
     def get_html(self, unique_id: str) -> str:
         if not unique_id:

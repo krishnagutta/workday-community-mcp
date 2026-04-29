@@ -17,6 +17,7 @@ from community_mcp.coveo_client import (
     CoveoAuthError,
     CoveoClient,
     SearchHit,
+    SearchResult,
 )
 
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
@@ -26,7 +27,6 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SEARCH_COUNT = 10
 DEFAULT_READ_TOP_N = 3
-EXCERPT_PREVIEW_CHARS = 220
 RETRY_REFRESH_HINT = "Run: bash bin/refresh-token.sh --auto"
 
 mcp = FastMCP("workday-community")
@@ -82,9 +82,6 @@ def _format_date(date_ms: int | None) -> str:
 
 
 def _format_hit(index: int, hit: SearchHit) -> str:
-    excerpt = hit.excerpt[:EXCERPT_PREVIEW_CHARS]
-    if len(hit.excerpt) > EXCERPT_PREVIEW_CHARS:
-        excerpt += "…"
     metadata_bits = []
     if hit.content_type:
         metadata_bits.append(hit.content_type)
@@ -101,16 +98,24 @@ def _format_hit(index: int, hit: SearchHit) -> str:
         lines.append(f"   {metadata}")
     lines.append(f"   URL: {hit.url}")
     lines.append(f"   ID:  {hit.unique_id}")
-    if excerpt:
-        lines.append(f"   {excerpt}")
+    if hit.excerpt:
+        lines.append(f"   {hit.excerpt}")
     return "\n".join(lines)
 
 
-def _format_results(query: str, hits: list[SearchHit]) -> str:
-    if not hits:
-        return f"No results for '{query}'."
-    body = "\n\n".join(_format_hit(i, h) for i, h in enumerate(hits, 1))
-    return f"Found {len(hits)} results for '{query}':\n\n{body}"
+def _format_results(query: str, result: SearchResult) -> str:
+    if not result.hits:
+        suffix = f" ({result.total_count:,} total)" if result.total_count else ""
+        return f"No results for '{query}'{suffix}."
+    end = result.offset + len(result.hits)
+    header = (
+        f"Showing {result.offset + 1}-{end} of {result.total_count:,} results "
+        f"for '{query}'"
+    )
+    if result.next_offset is not None:
+        header += f" — call again with offset={result.next_offset} for more"
+    body = "\n\n".join(_format_hit(i, h) for i, h in enumerate(result.hits, result.offset + 1))
+    return f"{header}\n\n{body}"
 
 
 def _auth_error_message(exc: CoveoAuthError) -> str:
@@ -121,12 +126,17 @@ def _auth_error_message(exc: CoveoAuthError) -> str:
 def search_community(
     query: str,
     count: int = DEFAULT_SEARCH_COUNT,
+    offset: int = 0,
     only_official_docs: bool = False,
     product_line: str | None = None,
 ) -> str:
-    """Search Workday Resource Center / Community docs (Coveo-backed). Returns a numbered
-    list with title, content type, product line, source, date, URL, Coveo uniqueId, and
-    a short excerpt.
+    """Search Workday Resource Center / Community docs (Coveo-backed). Returns a header
+    line ("Showing X-Y of Z results") plus a numbered list with title, content type,
+    product line, source, date, URL, Coveo uniqueId, and a ~400-char excerpt that often
+    answers the question without needing get_article.
+
+    For more results past the first page, call again with offset=<previous_end>.
+    The header tells you when to stop.
 
     Set only_official_docs=True to drop community forum posts and Salesforce KB articles —
     keeps only the official Workday admin guide. Use this for "how does X work" or
@@ -139,14 +149,15 @@ def search_community(
     sources = [SOURCE_OFFICIAL_DOCS] if only_official_docs else None
     product_lines = [product_line] if product_line else None
     try:
-        hits = _with_auto_refresh(
+        result = _with_auto_refresh(
             lambda: _client().search(
-                query, count=count, sources=sources, product_lines=product_lines
+                query, count=count, offset=offset,
+                sources=sources, product_lines=product_lines,
             )
         )
     except CoveoAuthError as exc:
         return _auth_error_message(exc)
-    return _format_results(query, hits)
+    return _format_results(query, result)
 
 
 @mcp.tool()
@@ -164,38 +175,45 @@ def get_article(unique_id: str) -> str:
 def search_release_notes(
     query: str,
     count: int = DEFAULT_SEARCH_COUNT,
+    offset: int = 0,
     product_line: str | None = None,
 ) -> str:
     """Search ONLY official Workday release notes (e.g. 2025R2, service packs).
-    Use for "what's new in...", "release note for ...", "is this a new feature" questions."""
+    Use for "what's new in...", "release note for ...", "is this a new feature" questions.
+    Paginate by passing offset=<previous_end>."""
     product_lines = [product_line] if product_line else None
     try:
-        hits = _with_auto_refresh(
+        result = _with_auto_refresh(
             lambda: _client().search(
-                query, count=count,
+                query, count=count, offset=offset,
                 sources=[SOURCE_RELEASE_NOTES],
                 product_lines=product_lines,
             )
         )
     except CoveoAuthError as exc:
         return _auth_error_message(exc)
-    return _format_results(query, hits)
+    return _format_results(query, result)
 
 
 @mcp.tool()
-def search_knowledge_base(query: str, count: int = DEFAULT_SEARCH_COUNT) -> str:
+def search_knowledge_base(
+    query: str,
+    count: int = DEFAULT_SEARCH_COUNT,
+    offset: int = 0,
+) -> str:
     """Search Salesforce Knowledge Articles — Workday's troubleshooting / support KB.
     Use when the user reports an error, hit an issue, or needs a fix recipe.
-    Returns articles like "Error X — Cause and Resolution"."""
+    Returns articles like "Error X — Cause and Resolution".
+    Paginate by passing offset=<previous_end>."""
     try:
-        hits = _with_auto_refresh(
+        result = _with_auto_refresh(
             lambda: _client().search(
-                query, count=count, sources=[SOURCE_KNOWLEDGE_ARTICLES]
+                query, count=count, offset=offset, sources=[SOURCE_KNOWLEDGE_ARTICLES]
             )
         )
     except CoveoAuthError as exc:
         return _auth_error_message(exc)
-    return _format_results(query, hits)
+    return _format_results(query, result)
 
 
 @mcp.tool()
@@ -207,15 +225,15 @@ def search_and_read(query: str, top_n: int = DEFAULT_READ_TOP_N) -> str:
     higher if the question needs broader context."""
     try:
         client = _client()
-        hits = _with_auto_refresh(
+        result = _with_auto_refresh(
             lambda: client.search(query, count=top_n, sources=[SOURCE_OFFICIAL_DOCS])
         )
     except CoveoAuthError as exc:
         return _auth_error_message(exc)
-    if not hits:
+    if not result.hits:
         return f"No results for '{query}'."
     sections = []
-    for hit in hits:
+    for hit in result.hits:
         sections.append(f"# {hit.title}\n\nSource: {hit.url}\n")
         if not hit.has_html:
             sections.append("_(No cached body available.)_\n")
