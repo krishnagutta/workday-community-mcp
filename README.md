@@ -125,6 +125,14 @@ Add to `~/.claude/settings.json` (or a project `.mcp.json`):
 (`bin/install.sh` and the quickstart installer do this automatically using
 `claude mcp add` — you only need to edit the JSON manually if you're not using Claude Code.)
 
+## Where this MCP lives
+
+This installs as a **local MCP server** running on your laptop. After install you'll see
+it in `claude mcp list` (Claude Code) and in the developer settings of Claude Desktop.
+
+It is **not** in Anthropic's public `/connectors` registry. If a teammate asks "why isn't
+there a connector card for it?" — that's why. Installation is via this repo.
+
 ## Tools
 
 | Tool | Purpose |

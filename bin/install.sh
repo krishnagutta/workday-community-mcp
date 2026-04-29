@@ -10,7 +10,9 @@
 # What it does NOT do:
 #   - Capture the Coveo auth token. Run `bash bin/refresh-token.sh` after install.
 
-set -euo pipefail
+set -eo pipefail
+# Note: deliberately NOT using `set -u` — macOS bash 3.2 trips on empty-array
+# expansions and we'd rather not require bash 4+.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
@@ -24,14 +26,26 @@ for arg in "$@"; do
     esac
 done
 
+export PATH="$HOME/.local/bin:$PATH"
+
 if ! command -v uv >/dev/null 2>&1; then
-    echo "ERROR: uv is required. Install it from https://docs.astral.sh/uv/getting-started/installation/" >&2
+    echo "ERROR: uv is required. Install it from https://docs.astral.sh/uv/getting-started/installation/ then re-run." >&2
+    echo "  Quick install: curl -LsSf https://astral.sh/uv/install.sh | sh" >&2
     exit 1
 fi
 
 if ! command -v claude >/dev/null 2>&1; then
     echo "ERROR: Claude Code CLI ('claude') not found on PATH." >&2
     echo "  Install it from https://claude.com/claude-code, then re-run." >&2
+    exit 1
+fi
+
+# If we're going to write Claude Desktop config, the Claude Desktop app must NOT be
+# running — it caches the config in memory and auto-saves over external edits.
+if [[ "$WITH_DESKTOP" == "true" ]] && pgrep -x "Claude" >/dev/null 2>&1; then
+    echo "ERROR: Claude Desktop is running. Fully quit it (Cmd+Q) before installing," >&2
+    echo "  or its auto-save will overwrite the config we write. Re-run after quitting," >&2
+    echo "  or pass --no-desktop to skip Claude Desktop registration." >&2
     exit 1
 fi
 

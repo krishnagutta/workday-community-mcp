@@ -53,6 +53,18 @@ def main() -> int:
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(json.dumps(config, indent=2) + "\n")
+
+    # Verify our write actually persisted. Claude Desktop, if running, periodically
+    # serializes its in-memory config back to disk and would clobber our edit.
+    verification = json.loads(config_path.read_text())
+    if "community" not in verification.get("mcpServers", {}):
+        print(
+            f"    ERROR: 'community' missing from {config_path} immediately after write. "
+            "Claude Desktop is likely running and clobbered our edit. Quit it (Cmd+Q) and re-run.",
+            file=sys.stderr,
+        )
+        return 1
+
     print(f"    Wrote 'community' entry to {config_path}")
     print("    Fully quit (Cmd+Q) and reopen Claude Desktop to pick up the new MCP.")
     return 0
