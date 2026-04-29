@@ -49,9 +49,14 @@ multi-minute download.
    but the current session won't pick it up — only fresh sessions will see the
    `mcp__community__*` tools.
 
-## Refreshing the token (every ~2h)
+## Refreshing the token
 
-When tools return `AUTH ERROR: Coveo returned 401`, run:
+The MCP **auto-refreshes** the token transparently when it hits a 401, as long as the user
+has Playwright installed and their saved storage state is < ~12h old. So normally you don't
+need to do anything — just retry the failed tool call once if you want to be explicit.
+
+**You only need to run a manual refresh** if the auto-refresh fails (storage state expired
+beyond 12h, or Playwright not installed):
 
 ```bash
 bash bin/refresh-token.sh --auto
@@ -62,6 +67,21 @@ bash bin/refresh-token.sh --auto
 
 Do NOT ask the user to manually copy cookies from DevTools unless they explicitly opted out
 of Playwright.
+
+## Tool selection guide
+
+Pick the right tool for the question:
+
+| User asks about | Use |
+|---|---|
+| Configuration / "how does X work" / "set up Y" | `search_community(..., only_official_docs=True)` or `search_and_read` |
+| Specific product (Payroll, HCM, etc.) | `search_community(..., product_line="Payroll")` |
+| New feature / "what's new in 2025R2" / release notes | `search_release_notes` |
+| Error / failure / troubleshooting | `search_knowledge_base` (Salesforce KB has cause/resolution) |
+| Reading a specific article you already found | `get_article(unique_id)` |
+| One-shot Q&A — search + read top hits in one call | `search_and_read` |
+
+Defaults are good — start without filters and only narrow if results are noisy.
 
 ## Architecture you need to know
 

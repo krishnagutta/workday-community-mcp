@@ -115,9 +115,16 @@ Add to `~/.claude/settings.json` (or a project `.mcp.json`):
 
 | Tool | Purpose |
 |---|---|
-| `search_community(query, count)` | Coveo search → numbered list of `{title, URL, uniqueId, excerpt}` |
-| `get_article(unique_id)` | Fetches Coveo's cached HTML for one article, returns markdown |
-| `search_and_read(query, top_n)` | Search + fetch top N bodies in one call (one-shot Q&A) |
+| `search_community(query, count, only_official_docs?, product_line?)` | General search with optional filters by source bucket and product line |
+| `search_release_notes(query, count, product_line?)` | Search only Workday release notes |
+| `search_knowledge_base(query, count)` | Search Salesforce KB articles (troubleshooting / errors) |
+| `get_article(unique_id)` | Returns the full body of one article as markdown |
+| `search_and_read(query, top_n)` | Search official docs + fetch top N bodies in one call |
+
+Each result includes content type, product line, source bucket, and date.
+
+The MCP **auto-refreshes its auth token on 401** — you'll only see auth errors if your
+Playwright storage state has aged out (≥12h). At that point run `bash bin/refresh-token.sh --auto`.
 
 ## Files
 
