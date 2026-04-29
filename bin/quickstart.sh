@@ -56,13 +56,7 @@ if ! command -v uv >/dev/null 2>&1; then
     fi
 fi
 
-# Block install if Claude Desktop is running — it auto-saves its config and would
-# clobber our edits within minutes.
-if [[ "$WITH_DESKTOP" == "true" ]] && pgrep -x "Claude" >/dev/null 2>&1; then
-    abort "Claude Desktop is running. Fully quit it (Cmd+Q) before installing,
-    or its auto-save will overwrite the config we write. Re-run after quitting,
-    or pass --no-desktop to skip Claude Desktop registration."
-fi
+# Note: if Claude Desktop is running, install.sh will briefly quit it and relaunch.
 
 # --- Clone ---
 

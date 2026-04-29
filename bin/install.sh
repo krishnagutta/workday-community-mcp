@@ -40,13 +40,31 @@ if ! command -v claude >/dev/null 2>&1; then
     exit 1
 fi
 
-# If we're going to write Claude Desktop config, the Claude Desktop app must NOT be
-# running — it caches the config in memory and auto-saves over external edits.
+# If we're going to write Claude Desktop config and Desktop is running, briefly quit it
+# (it caches the config in memory and would auto-save over our edits). We relaunch it
+# at the end of install so the user doesn't notice.
+RELAUNCH_DESKTOP=false
+relaunch_desktop_on_exit() {
+    if [[ "$RELAUNCH_DESKTOP" == "true" ]]; then
+        open -a "Claude" 2>/dev/null || true
+    fi
+}
+trap relaunch_desktop_on_exit EXIT
+
 if [[ "$WITH_DESKTOP" == "true" ]] && pgrep -x "Claude" >/dev/null 2>&1; then
-    echo "ERROR: Claude Desktop is running. Fully quit it (Cmd+Q) before installing," >&2
-    echo "  or its auto-save will overwrite the config we write. Re-run after quitting," >&2
-    echo "  or pass --no-desktop to skip Claude Desktop registration." >&2
-    exit 1
+    echo "==> Claude Desktop is running — quitting briefly to update its config"
+    echo "    (your conversations are preserved; macOS will restore the same window on relaunch)"
+    osascript -e 'quit app "Claude"' 2>/dev/null || true
+    # Wait up to 10s for graceful quit
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        pgrep -x "Claude" >/dev/null 2>&1 || break
+        sleep 1
+    done
+    if pgrep -x "Claude" >/dev/null 2>&1; then
+        echo "ERROR: Claude Desktop didn't quit within 10s. Quit it manually (Cmd+Q) and re-run." >&2
+        exit 1
+    fi
+    RELAUNCH_DESKTOP=true
 fi
 
 if [[ -x "$ROOT_DIR/.venv/bin/python" ]]; then
@@ -90,6 +108,12 @@ if [[ "$WITH_DESKTOP" == "true" ]]; then
         echo "==> Claude Desktop not detected at $DESKTOP_CONFIG_DIR — skipping."
         echo "    (Install Claude Desktop later then re-run: bash bin/install.sh)"
     fi
+fi
+
+if [[ "$RELAUNCH_DESKTOP" == "true" ]]; then
+    echo "==> Relaunching Claude Desktop"
+    open -a "Claude" 2>/dev/null || true
+    RELAUNCH_DESKTOP=false  # done; suppress the EXIT trap relaunch
 fi
 
 cat <<EOF

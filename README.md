@@ -32,7 +32,8 @@ browser for login, and registers the MCP with **both Claude Code and Claude Desk
 
 After install:
 - **Claude Code**: start a new session — tools auto-load.
-- **Claude Desktop**: fully quit (Cmd+Q) and reopen to pick up the new MCP.
+- **Claude Desktop**: the installer briefly quits and relaunches Desktop so the new
+  config is picked up. Your conversations and window state are preserved.
 
 If your org doesn't allow Playwright, pass `--no-playwright`. To skip Claude Desktop
 registration (e.g., you don't use it), pass `--no-desktop`:
