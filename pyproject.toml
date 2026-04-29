@@ -1,0 +1,18 @@
+[project]
+name = "community-mcp"
+version = "0.1.0"
+description = "MCP server exposing Workday Community / Resource Center via the Coveo search API."
+requires-python = ">=3.11"
+dependencies = [
+    "mcp[cli]>=1.2.0",
+    "httpx>=0.27.0",
+    "python-dotenv>=1.0.1",
+    "markdownify>=0.13.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["community_mcp"]
