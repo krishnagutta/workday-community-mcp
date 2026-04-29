@@ -9,14 +9,14 @@ flow below.
 Default flow includes Playwright + auto-refresh — only mention `--no-playwright` if the
 user has an explicit org-policy concern. Run these in order:
 
-1. **Install** (creates venv, installs deps + Playwright + Chromium, registers MCP):
+1. **Install** (creates venv, installs deps + Playwright + Chromium, registers MCP with
+   both Claude Code and Claude Desktop if installed):
    ```bash
    bash bin/install.sh
    ```
-   If the user explicitly says they can't have Playwright on their machine:
-   ```bash
-   bash bin/install.sh --no-playwright
-   ```
+   Flags:
+   - `--no-playwright` — if the user can't have Playwright on their machine
+   - `--no-desktop` — if the user explicitly doesn't want Claude Desktop registration
 
 2. **Capture the user's auth token**:
    ```bash
@@ -36,7 +36,8 @@ user has an explicit org-policy concern. Run these in order:
 
 4. **Tell the user to start a NEW Claude Code session.** The MCP is registered at user
    scope but the current session won't pick it up — only fresh sessions will see the
-   `mcp__community__*` tools.
+   `mcp__community__*` tools. If they also use Claude Desktop, tell them to fully quit
+   (Cmd+Q) and reopen it.
 
 ## Refreshing the token
 

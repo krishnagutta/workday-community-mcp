@@ -16,9 +16,11 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 WITH_PLAYWRIGHT=true
+WITH_DESKTOP=true
 for arg in "$@"; do
     case "$arg" in
         --no-playwright) WITH_PLAYWRIGHT=false ;;
+        --no-desktop)    WITH_DESKTOP=false ;;
     esac
 done
 
@@ -33,8 +35,12 @@ if ! command -v claude >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "==> Creating Python 3.11 virtualenv at .venv"
-uv venv --python 3.11 .venv
+if [[ -x "$ROOT_DIR/.venv/bin/python" ]]; then
+    echo "==> Reusing existing Python virtualenv at .venv"
+else
+    echo "==> Creating Python 3.11 virtualenv at .venv"
+    uv venv --python 3.11 .venv
+fi
 
 echo "==> Installing package + dependencies"
 VIRTUAL_ENV="$ROOT_DIR/.venv" uv pip install --project "$ROOT_DIR" -e "$ROOT_DIR" >/dev/null
@@ -52,6 +58,24 @@ if claude mcp list 2>&1 | grep -q "^community:"; then
     echo "    'community' MCP already registered — skipping."
 else
     claude mcp add community --scope user -- "$ROOT_DIR/.venv/bin/python" -m community_mcp.server
+fi
+
+if [[ "$WITH_DESKTOP" == "true" ]]; then
+    case "$(uname -s)" in
+        Darwin*) DESKTOP_CONFIG_DIR="$HOME/Library/Application Support/Claude" ;;
+        Linux*)  DESKTOP_CONFIG_DIR="$HOME/.config/Claude" ;;
+        *)       DESKTOP_CONFIG_DIR="" ;;
+    esac
+    if [[ -n "$DESKTOP_CONFIG_DIR" && -d "$DESKTOP_CONFIG_DIR" ]]; then
+        echo "==> Registering MCP server with Claude Desktop"
+        "$ROOT_DIR/.venv/bin/python" "$ROOT_DIR/bin/_register_desktop.py" \
+            "$DESKTOP_CONFIG_DIR/claude_desktop_config.json" \
+            "$ROOT_DIR/.venv/bin/python" \
+            "$ROOT_DIR"
+    elif [[ -n "$DESKTOP_CONFIG_DIR" ]]; then
+        echo "==> Claude Desktop not detected at $DESKTOP_CONFIG_DIR — skipping."
+        echo "    (Install Claude Desktop later then re-run: bash bin/install.sh)"
+    fi
 fi
 
 cat <<EOF

@@ -27,15 +27,18 @@ curl -fsSL https://raw.githubusercontent.com/krishnagutta/workday-community-mcp/
 
 This clones the repo into `~/community-mcp`, installs everything (including Playwright
 + Chromium for auto-refresh), captures your Workday Community auth token by opening a
-browser for login, and registers the MCP with Claude Code. Total time: 2-3 minutes.
+browser for login, and registers the MCP with **both Claude Code and Claude Desktop**
+(if Claude Desktop is installed). Total time: 2-3 minutes.
 
-After install, **start a new Claude Code session** — the MCP tools (`mcp__community__*`)
-are registered at user scope and available globally.
+After install:
+- **Claude Code**: start a new session — tools auto-load.
+- **Claude Desktop**: fully quit (Cmd+Q) and reopen to pick up the new MCP.
 
-If your org doesn't allow Playwright, pass `--no-playwright`:
+If your org doesn't allow Playwright, pass `--no-playwright`. To skip Claude Desktop
+registration (e.g., you don't use it), pass `--no-desktop`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/krishnagutta/workday-community-mcp/main/bin/quickstart.sh | bash -s -- --no-playwright
+curl -fsSL https://raw.githubusercontent.com/krishnagutta/workday-community-mcp/main/bin/quickstart.sh | bash -s -- --no-playwright --no-desktop
 ```
 
 ## Quickstart — let Claude Code drive the setup

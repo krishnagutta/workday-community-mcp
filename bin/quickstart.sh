@@ -17,9 +17,11 @@ REPO_URL="${COMMUNITY_MCP_REPO_URL:-https://github.com/krishnagutta/workday-comm
 INSTALL_DIR="${COMMUNITY_MCP_DIR:-$HOME/community-mcp}"
 
 WITH_PLAYWRIGHT=true
+WITH_DESKTOP=true
 for arg in "$@"; do
     case "$arg" in
         --no-playwright) WITH_PLAYWRIGHT=false ;;
+        --no-desktop)    WITH_DESKTOP=false ;;
     esac
 done
 
@@ -45,11 +47,10 @@ fi
 cd "$INSTALL_DIR"
 
 bold "==> Running bin/install.sh"
-if [[ "$WITH_PLAYWRIGHT" == "true" ]]; then
-    bash bin/install.sh
-else
-    bash bin/install.sh --no-playwright
-fi
+INSTALL_FLAGS=()
+[[ "$WITH_PLAYWRIGHT" == "false" ]] && INSTALL_FLAGS+=("--no-playwright")
+[[ "$WITH_DESKTOP" == "false" ]]    && INSTALL_FLAGS+=("--no-desktop")
+bash bin/install.sh "${INSTALL_FLAGS[@]}"
 
 bold "==> Capturing your Workday Community auth token"
 if [[ "$WITH_PLAYWRIGHT" == "true" ]]; then
