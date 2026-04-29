@@ -1,29 +1,60 @@
 #!/usr/bin/env bash
-# Extracts the Coveo search token from a freshly captured curl command and writes
-# it (plus org / search hub) into .env. Usage:
+# Refresh the Coveo search token used by community-mcp. Two modes:
 #
+#   ./bin/refresh-token.sh           (manual:  reads .captured-curl.sh)
+#   ./bin/refresh-token.sh --auto    (Playwright: drives a browser, requires the
+#                                     [auto-refresh] extras: uv pip install -e '.[auto-refresh]'
+#                                     and  playwright install chromium)
+#
+# Manual flow:
 #   1. Log in via incognito at https://community.workday.com.
 #   2. DevTools -> Network -> reload -> right-click home.html -> Copy -> Copy as cURL (bash).
 #   3. pbpaste > .captured-curl.sh
 #   4. ./bin/refresh-token.sh
 #
-# .env is gitignored. .captured-curl.sh is gitignored.
+# Auto flow:
+#   First run opens a real Chromium window — log in (handles MFA naturally).
+#   Subsequent runs (within ~12h) are headless / no UI.
+#
+# .env, .captured-curl.sh, and .playwright-state.json are all gitignored.
 
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CURL_FILE="${ROOT_DIR}/.captured-curl.sh"
 ENV_FILE="${ROOT_DIR}/.env"
+VENV_PYTHON="${ROOT_DIR}/.venv/bin/python"
+
+if [[ "${1:-}" == "--auto" ]]; then
+    if [[ ! -x "$VENV_PYTHON" ]]; then
+        echo "ERROR: ${VENV_PYTHON} not found. Run bash bin/install.sh first." >&2
+        exit 1
+    fi
+    "$VENV_PYTHON" -m community_mcp.auth
+    NEW_TOKEN=$(grep -oE 'COVEO_SEARCH_TOKEN=[^[:space:]]+' "$ENV_FILE" | cut -d= -f2-)
+    EXPIRY_HUMAN=$("$VENV_PYTHON" -c "
+import base64, json, datetime, sys
+token = sys.argv[1]
+payload = token.split('.')[1]
+payload += '=' * (-len(payload) % 4)
+data = json.loads(base64.urlsafe_b64decode(payload))
+exp = datetime.datetime.fromtimestamp(data['exp'])
+remaining = exp - datetime.datetime.now()
+print(f'{exp.isoformat(timespec=\"seconds\")} (in {int(remaining.total_seconds()/60)} min)')
+" "$NEW_TOKEN")
+    echo "  Token expires: ${EXPIRY_HUMAN}"
+    exit 0
+fi
 
 if [[ ! -f "$CURL_FILE" ]]; then
     echo "ERROR: ${CURL_FILE} not found." >&2
     echo "  Run: pbpaste > .captured-curl.sh" >&2
     echo "  (after Copy as cURL on the home.html request in DevTools Network)" >&2
+    echo "  Or use the auto flow:  ./bin/refresh-token.sh --auto" >&2
     exit 1
 fi
 
 # coveo-info cookie is URL-encoded JSON like:  %7B%22searchToken%22%3A%22<JWT>%22%2C...
-# Extract the searchToken JWT (3 base64url segments separated by dots).
 SEARCH_TOKEN=$(
     grep -oE 'coveo-info=[^;]+' "$CURL_FILE" \
     | python3 -c '
@@ -39,12 +70,10 @@ if [[ -z "$SEARCH_TOKEN" ]]; then
     exit 2
 fi
 
-# Decode JWT payload to surface expiry to the user.
 EXPIRY_HUMAN=$(python3 -c "
 import sys, base64, json, datetime
 token = sys.argv[1]
 payload = token.split('.')[1]
-# base64url with padding fix
 payload += '=' * (-len(payload) % 4)
 data = json.loads(base64.urlsafe_b64decode(payload))
 exp = datetime.datetime.fromtimestamp(data['exp'])

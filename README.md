@@ -24,7 +24,31 @@ bash bin/install.sh
 Each teammate captures their own Coveo token (see below) — tokens are per-user and carry your individual
 Workday Community access scope. **Do not share tokens.**
 
-## Capture the token (every ~2h until v2 lands)
+## Refreshing the token
+
+Tokens last ~2 hours. Two ways to refresh — pick one.
+
+### Option A — Auto (recommended): Playwright browser drive
+
+Opt-in once:
+
+```bash
+uv pip install -e '.[auto-refresh]'
+playwright install chromium
+```
+
+Then:
+
+```bash
+./bin/refresh-token.sh --auto
+```
+
+- **First run** (or after ~12h): a real Chromium window opens; complete login + MFA normally; window closes.
+- **Subsequent runs** (within ~12h): headless, silent, ~1 second.
+
+Storage state is persisted to `.playwright-state.json` (gitignored). When it ages out, the next run automatically falls back to headed login.
+
+### Option B — Manual: copy-as-cURL
 
 1. Open Chrome **incognito** at <https://community.workday.com> and log in.
 2. DevTools → Network → reload `resourcecenter.workday.com/en-us/wrc/home.html`.
@@ -35,8 +59,6 @@ Workday Community access scope. **Do not share tokens.**
    pbpaste > .captured-curl.sh
    ./bin/refresh-token.sh
    ```
-
-   The script extracts the Coveo `searchToken` JWT, writes `.env`, and prints token expiry.
 
 ## Run
 

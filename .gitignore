@@ -2,6 +2,7 @@
 .env.local
 .captured-curl.sh
 *.captured.txt
+.playwright-state.json
 
 __pycache__/
 *.py[cod]

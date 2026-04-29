@@ -10,6 +10,11 @@ dependencies = [
     "markdownify>=0.13.1",
 ]
 
+[project.optional-dependencies]
+auto-refresh = [
+    "playwright>=1.45.0",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
