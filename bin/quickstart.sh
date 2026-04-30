@@ -42,8 +42,14 @@ note "Target directory: $INSTALL_DIR"
 # Defensive PATH update so a fresh uv install is visible immediately.
 export PATH="$HOME/.local/bin:$PATH"
 
-command -v git >/dev/null    || abort "git not found. Install git, then re-run."
-command -v claude >/dev/null || abort "Claude Code CLI not found. Install from https://claude.com/claude-code, then re-run."
+command -v git >/dev/null || abort "git not found. Install git, then re-run."
+
+HAS_CLAUDE_CODE=true
+if ! command -v claude >/dev/null 2>&1; then
+    HAS_CLAUDE_CODE=false
+    warn "Claude Code CLI not found — will register with Claude Desktop only."
+    warn "If you also use Claude Code, install it from https://claude.com/claude-code and re-run."
+fi
 
 if ! command -v uv >/dev/null 2>&1; then
     note "uv not found — auto-installing from astral.sh ..."

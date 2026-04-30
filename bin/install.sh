@@ -34,10 +34,12 @@ if ! command -v uv >/dev/null 2>&1; then
     exit 1
 fi
 
+HAS_CLAUDE_CODE=true
 if ! command -v claude >/dev/null 2>&1; then
-    echo "ERROR: Claude Code CLI ('claude') not found on PATH." >&2
-    echo "  Install it from https://claude.com/claude-code, then re-run." >&2
-    exit 1
+    HAS_CLAUDE_CODE=false
+    echo "    Claude Code CLI not found — skipping Claude Code registration."
+    echo "    Will register with Claude Desktop only."
+    echo "    (Install Claude Code from https://claude.com/claude-code and re-run to also register there.)"
 fi
 
 # If we're going to write Claude Desktop config and Desktop is running, briefly quit it
@@ -85,11 +87,13 @@ else
     echo "    You'll need to capture tokens manually via 'bash bin/refresh-token.sh --manual'."
 fi
 
-echo "==> Registering MCP server with Claude Code (user scope)"
-if claude mcp list 2>&1 | grep -q "^community:"; then
-    echo "    'community' MCP already registered — skipping."
-else
-    claude mcp add community --scope user -- "$ROOT_DIR/.venv/bin/python" -m community_mcp.server
+if [[ "$HAS_CLAUDE_CODE" == "true" ]]; then
+    echo "==> Registering MCP server with Claude Code (user scope)"
+    if claude mcp list 2>&1 | grep -q "^community:"; then
+        echo "    'community' MCP already registered — skipping."
+    else
+        claude mcp add community --scope user -- "$ROOT_DIR/.venv/bin/python" -m community_mcp.server
+    fi
 fi
 
 if [[ "$WITH_DESKTOP" == "true" ]]; then
@@ -116,6 +120,12 @@ if [[ "$RELAUNCH_DESKTOP" == "true" ]]; then
     RELAUNCH_DESKTOP=false  # done; suppress the EXIT trap relaunch
 fi
 
+if [[ "$HAS_CLAUDE_CODE" == "true" ]]; then
+    NEXT_STEP="Then start a new Claude Code session and ask it to search Workday Community."
+else
+    NEXT_STEP="Then fully quit Claude Desktop (Cmd+Q) and reopen it to pick up the new MCP."
+fi
+
 cat <<EOF
 
 ✅ Installed.
@@ -130,5 +140,5 @@ A real Chromium window will open. Log in to Workday Community
 Subsequent refreshes are silent (headless, ~1 second) — until your saved
 session ages out (~12h), at which point the browser opens again for re-login.
 
-Then start a new Claude Code session and ask it to search Workday Community.
+$NEXT_STEP
 EOF
