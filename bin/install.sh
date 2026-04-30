@@ -48,10 +48,20 @@ fi
 RELAUNCH_DESKTOP=false
 relaunch_desktop_on_exit() {
     if [[ "$RELAUNCH_DESKTOP" == "true" ]]; then
-        open -a "Claude" 2>/dev/null || true
+        _relaunch_claude
     fi
 }
 trap relaunch_desktop_on_exit EXIT
+
+_relaunch_claude() {
+    if open -a "Claude" 2>/dev/null; then
+        echo "==> Claude Desktop relaunched."
+    else
+        echo ""
+        echo "⚠️  Could not relaunch Claude Desktop automatically."
+        echo "   Open it manually from your Applications folder or Spotlight."
+    fi
+}
 
 if [[ "$WITH_DESKTOP" == "true" ]] && pgrep -x "Claude" >/dev/null 2>&1; then
     echo "==> Claude Desktop is running — quitting briefly to update its config"
@@ -115,8 +125,7 @@ if [[ "$WITH_DESKTOP" == "true" ]]; then
 fi
 
 if [[ "$RELAUNCH_DESKTOP" == "true" ]]; then
-    echo "==> Relaunching Claude Desktop"
-    open -a "Claude" 2>/dev/null || true
+    _relaunch_claude
     RELAUNCH_DESKTOP=false  # done; suppress the EXIT trap relaunch
 fi
 
