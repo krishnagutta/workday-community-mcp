@@ -188,7 +188,7 @@ def _as_list(value: Any) -> list[str]:
 
 
 def _raise_for_auth(response: httpx.Response) -> None:
-    if response.status_code in (401, 403):
+    if response.status_code in (401, 403, 419):
         raise CoveoAuthError(
             f"Coveo returned {response.status_code}. The search token has likely expired. "
             "Re-capture from your browser and run ./bin/refresh-token.sh."
