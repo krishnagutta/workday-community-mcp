@@ -69,6 +69,29 @@ bash bin/refresh-token.sh     # opens a browser for first-time login
 Each user captures their own Coveo token — tokens are per-user and carry your individual
 Workday Community access scope. **Do not share tokens, `.env`, or `.playwright-state.json`.**
 
+## Updating to the latest version
+
+When new tools or bug fixes ship to `main`, run:
+
+```bash
+cd ~/community-mcp && bash bin/update.sh
+```
+
+Or as a one-liner from anywhere:
+
+```bash
+bash -c 'cd "${COMMUNITY_MCP_DIR:-$HOME/community-mcp}" && bash bin/update.sh'
+```
+
+The update:
+- Pulls latest from `main` (refuses if you have uncommitted local changes — `git stash` first)
+- Reinstalls deps via `uv pip install -e .`
+- Re-registers the MCP with both Claude Code and Claude Desktop (idempotent)
+- Auto-quits + relaunches Claude Desktop so it sees new tools
+- Preserves your `.env`, `.playwright-state.json`, and any local secrets
+
+After updating, **start a new Claude Code session** to see new tools.
+
 ## Refreshing the token
 
 Tokens auto-refresh in the background — you almost never need to think about this. The MCP

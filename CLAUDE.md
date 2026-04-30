@@ -39,6 +39,21 @@ user has an explicit org-policy concern. Run these in order:
    `mcp__community__*` tools. If they also use Claude Desktop, tell them to fully quit
    (Cmd+Q) and reopen it.
 
+## Updating
+
+When the user wants the latest version (new tools, bug fixes), run:
+
+```bash
+bash bin/update.sh
+```
+
+This pulls from main, reinstalls, re-registers MCPs, and auto-quits/relaunches Claude
+Desktop. After it completes, tell the user: "Start a new Claude Code session to see the
+new tools." (Desktop is already restarted.)
+
+If `git pull` fails because of local changes, ask the user before running `git stash` —
+they may have intentional modifications.
+
 ## Refreshing the token
 
 The MCP **auto-refreshes** the token transparently when it hits a 401, as long as the user's
