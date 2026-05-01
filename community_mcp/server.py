@@ -27,11 +27,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SEARCH_COUNT = 10
 DEFAULT_READ_TOP_N = 3
-RETRY_REFRESH_HINT = (
-    "Run: bash bin/refresh-token.sh\n"
-    "A browser window will open — log in to Workday Community (handle MFA normally).\n"
-    "The window closes automatically once login completes."
-)
+RETRY_REFRESH_HINT = "Run: bash bin/refresh-token.sh to manually re-authenticate."
 
 mcp = FastMCP("workday-community")
 
@@ -43,32 +39,31 @@ def _client() -> CoveoClient:
     return CoveoClient(token=token, org_id=org_id, search_hub=search_hub)
 
 
-def _try_silent_refresh() -> bool:
-    """Attempt a headless Playwright refresh. Returns True on success.
+def _try_refresh() -> bool:
+    """Refresh the Coveo token. Tries headless first; opens a browser if MFA is needed.
 
-    Never opens a browser — that would pop a window mid-conversation. If MFA
-    or session re-authentication is required, returns False so the caller can
-    surface a message telling the user to run refresh-token.sh manually.
+    The tool call blocks while the user completes login — the browser window
+    closes automatically once login is done, and the tool retries with a fresh token.
     """
     try:
-        from community_mcp.auth import AuthRefreshError, refresh_silent
+        from community_mcp.auth import AuthRefreshError, refresh
     except ImportError:
         return False
     try:
-        refresh_silent()
+        refresh()
     except (AuthRefreshError, Exception) as exc:
-        logger.warning("silent refresh failed: %s", exc)
+        logger.warning("refresh failed: %s", exc)
         return False
     load_dotenv(ENV_FILE, override=True)
     return True
 
 
 def _with_auto_refresh(call):
-    """Run `call` (a no-arg lambda); on CoveoAuthError, try silent refresh and retry once."""
+    """Run `call`; on CoveoAuthError, refresh (headless or browser) and retry once."""
     try:
         return call()
     except CoveoAuthError as first_exc:
-        if not _try_silent_refresh():
+        if not _try_refresh():
             raise first_exc
         return call()
 
