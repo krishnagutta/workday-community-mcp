@@ -27,7 +27,11 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SEARCH_COUNT = 10
 DEFAULT_READ_TOP_N = 3
-RETRY_REFRESH_HINT = "Run: bash bin/refresh-token.sh --auto"
+RETRY_REFRESH_HINT = (
+    "Run: bash bin/refresh-token.sh\n"
+    "A browser window will open — log in to Workday Community (handle MFA normally).\n"
+    "The window closes automatically once login completes."
+)
 
 mcp = FastMCP("workday-community")
 
@@ -42,21 +46,18 @@ def _client() -> CoveoClient:
 def _try_silent_refresh() -> bool:
     """Attempt a headless Playwright refresh. Returns True on success.
 
-    Bails out (returns False) if Playwright isn't installed, if the saved storage
-    state is missing/expired, or if the headless flow fails for any reason. We
-    never trigger a headed login from inside an MCP tool call — that would pop
-    a browser window mid-conversation.
+    Never opens a browser — that would pop a window mid-conversation. If MFA
+    or session re-authentication is required, returns False so the caller can
+    surface a message telling the user to run refresh-token.sh manually.
     """
     try:
-        from community_mcp import auth
+        from community_mcp.auth import AuthRefreshError, refresh_silent
     except ImportError:
         return False
-    if not auth._state_is_fresh():
-        return False
     try:
-        auth.refresh()
-    except Exception as exc:
-        logger.warning("silent refresh failed", exc_info=exc)
+        refresh_silent()
+    except (AuthRefreshError, Exception) as exc:
+        logger.warning("silent refresh failed: %s", exc)
         return False
     load_dotenv(ENV_FILE, override=True)
     return True
