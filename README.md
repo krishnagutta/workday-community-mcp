@@ -22,7 +22,7 @@ ages out (~12h), the browser opens once for re-login.
 ## Quickstart — one-line install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/krishnagutta/workday-community-mcp/v1.1/bin/quickstart.sh | bash
+curl -fsSL https://raw.githubusercontent.com/krishnagutta/workday-community-mcp/v1.2/bin/quickstart.sh | bash
 ```
 
 This clones the repo into `~/community-mcp`, installs everything (including Playwright
@@ -39,7 +39,7 @@ If your org doesn't allow Playwright, pass `--no-playwright`. To skip Claude Des
 registration (e.g., you don't use it), pass `--no-desktop`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/krishnagutta/workday-community-mcp/v1.1/bin/quickstart.sh | bash -s -- --no-playwright --no-desktop
+curl -fsSL https://raw.githubusercontent.com/krishnagutta/workday-community-mcp/v1.2/bin/quickstart.sh | bash -s -- --no-playwright --no-desktop
 ```
 
 ## Quickstart — let Claude Code drive the setup
